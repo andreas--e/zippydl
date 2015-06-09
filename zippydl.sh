@@ -1,8 +1,8 @@
 #!/bin/bash
 # @Description: zippyshare.com file download script
 #  Very loosely based on tyoyo's script at https://github.com/tyoyo/zippyshare/blob/master/zippyshare.sh
-#  Entirely REWRITTEN, fixed and shortened by andreas-e (now can do everything in less than 100 lines; 
-#  besides, original script did not work at all)
+#  Entirely REWRITTEN, fixed, simplified and shortened by andreas-e (now can do everything in less than
+#   90 lines; besides, original script did not work at all)
 # @Usage: zippydl.sh <URL to file>
 
 tmpdir="/tmp"
@@ -39,11 +39,11 @@ wget -O "$wgettmpi" "$1" --cookies=on --keep-session-cookies --save-cookies="$wg
  for ((i=0;i<${#param[@]};i++)); do
     [[ ${param[i]} =~ [0-9]+ ]] && x=${param[i]} || \
     x=$(grep "var ${param[i]} =" "$wgettmpi" | sed 's/;$//' | cut -f2 -d=)
-    [[ $x != *[!0-9]* ]] && v[i]=$x || v[i]=$((x))
+    [[ $x =~ [0-9]+ ]] && v[i]=$x;
  done
 
  ret=${v[0]}
-  for ((i=0;i<${#param[@]};i+=1)); do
+ for ((i=0;i<${#param[@]};i+=1)); do
     ret="$ret${arr[2*i+1]}${v[i+1]}"
  done
 
@@ -52,9 +52,9 @@ wget -O "$wgettmpi" "$1" --cookies=on --keep-session-cookies --save-cookies="$wg
  server=$(cut -f3 -d'/' <<<"$referrer")
  id=$(cut -f5 -d'/' <<<"$referrer")
 
-# cannot build download url if a is NaN
-[[ $a =~ [^0-9]+ ]] && { echo -e "\e[031m Zippyshare.com algorithm has apparently \
-changed again - please check (or request) for an update! \e[00m"; exit 1; }
+ # cannot build download url if code is NaN
+ [[ $code =~ [^0-9]+ ]] && { echo -e "\e[031m Zippyshare.com algorithm has apparently \
+ changed again - please check (or request) for an update! \e[00m"; exit 1; }
 
 # OK, all right. Build download url
   dl="http://$server/d/$id/$code/$fname"
@@ -73,7 +73,7 @@ changed again - please check (or request) for an update! \e[00m"; exit 1; }
   --progress=dot \
   2>&1 | \
   grep --line-buffered "%" |
-  sed -u -e "s,\.,,g" | 
+  sed -ue "s/\.//g" | 
   awk '{printf("\b\b\b\b\b\b\b[\033[ 36m%4s\033[0m ]", $2)}'
 
   echo -ne "\b\b\b\b\b\b\b[\e[032m Done \e[00m]"
