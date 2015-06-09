@@ -38,7 +38,7 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
 
  for ((i=0;i<${#param[@]};i++)); do
     [[ ${param[i]} =~ [0-9]+ ]] && x=${param[i]} || \
-    x=$(grep "var ${param[i]} =" "$wgettmpi" | sed 's/;$//' | cut -f2 -d=)
+    x=$(grep "var ${param[i]} =" "$wgettmpd" | sed 's/;$//' | cut -f2 -d=)
     [[ $x =~ [0-9]+ ]] && v[i]=$x;
  done
 
@@ -48,7 +48,7 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  done
 
  code=$((ret*10+3))
- referrer=$(awk -F\" '/og:url/{print $4}' "$wgettmpi")
+ referrer=$(awk -F\" '/og:url/{print $4}' "$wgettmpd")
  server=$(cut -f3 -d'/' <<<"$referrer")
  id=$(cut -f5 -d'/' <<<"$referrer")
 
@@ -79,4 +79,4 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
 
   [[ -s "$fname" ]] && { echo -e "\e[032m Download success! \e[00m"; } || { echo -e "\e[031m Download error! \e[00m"; }
 
-  rm -f "$wgettmpc" "$wgettmpi"
+  rm -f "$wgettmpc" "$wgettmpd"
