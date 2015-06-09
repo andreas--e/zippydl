@@ -14,7 +14,7 @@ wgettmpc="$tmpdir/.zippydlcookie0"
 [[ -f "$wgettmpc" || -f "$wgettmpi" ]] && rm -f "$wgettmpc" "$wgettmpi"
 [[ "$1" == "" ]] && { echo -e "\nUsage: $0 <URL to file>"; exit 0; }
 
-wget -O "$wgettmpi" "$1" --cookies=on --keep-session-cookies --save-cookies="$wgettmpc" --quiet
+wget -qO "$wgettmpi" "$1" --cookies=on --keep-session-cookies --save-cookies="$wgettmpc"
 
 [[ ! -s "$wgettmpc" ]] && { echo -e "ERROR: Cookie file corrupt or missing! Aborted.\n"; exit 1; }
 [[ ! -s "$wgettmpi" ]] && { echo -e "ERROR: Data file corrupt or missing! Aborted.\n"; exit 1; }
@@ -66,10 +66,9 @@ wget -O "$wgettmpi" "$1" --cookies=on --keep-session-cookies --save-cookies="$wg
   # Start downloading of file
   echo -ne "\e[033m '$fname' download starting....      \e[00m"
 
-  wget -c -O "$fname" $dl \
+  wget -cU '$agent' -O "$fname" $dl \
   --referer='$referrer' \
   --cookies=off --header "Cookie: JSESSIONID=$jsessionid" \
-  --user-agent='$agent' \
   --progress=dot \
   2>&1 | \
   grep --line-buffered "%" |
