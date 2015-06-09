@@ -67,7 +67,7 @@ changed again - please check (or request) for an update! \e[00m"; exit 1; }
   echo -ne "\e[033m '$fname' download starting....      \e[00m"
 
   wget -c -O "$fname" $dl \
-  --referer='$reffer' \
+  --referer='$referrer' \
   --cookies=off --header "Cookie: JSESSIONID=$jsessionid" \
   --user-agent='$agent' \
   --progress=dot \
