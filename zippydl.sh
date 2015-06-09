@@ -2,29 +2,29 @@
 # @Description: zippyshare.com file download script
 #  Very loosely based on tyoyo's script at https://github.com/tyoyo/zippyshare/blob/master/zippyshare.sh
 #  Entirely REWRITTEN, fixed, simplified and shortened by andreas-e (now can do everything in less than
-#   90 lines; besides, original script did not work at all)
+#   85 L.o.C.; besides, original script did not work at all)
 # @Usage: zippydl.sh <URL to file>
 
 tmpdir="/tmp"
-#temp file #1: information needed to build DL URL
-wgettmpi="$tmpdir/.zippydldata0"
-#temp file #2: dumped cookie file (from wget's --save-cookies option)
+#temp file #1: dumped cookie file (from wget's --save-cookies option)
 wgettmpc="$tmpdir/.zippydlcookie0"
+#temp file #2: information (data) needed to build DL URL
+wgettmpd="$tmpdir/.zippydldata0"
 
-[[ -f "$wgettmpc" || -f "$wgettmpi" ]] && rm -f "$wgettmpc" "$wgettmpi"
+[[ -f "$wgettmpc" || -f "$wgettmpd" ]] && rm -f "$wgettmpc" "$wgettmpd"
 [[ "$1" == "" ]] && { echo -e "\nUsage: $0 <URL to file>"; exit 0; }
 
-wget -qO "$wgettmpi" "$1" --cookies=on --keep-session-cookies --save-cookies="$wgettmpc"
+wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$wgettmpc"
 
 [[ ! -s "$wgettmpc" ]] && { echo -e "ERROR: Cookie file corrupt or missing! Aborted.\n"; exit 1; }
-[[ ! -s "$wgettmpi" ]] && { echo -e "ERROR: Data file corrupt or missing! Aborted.\n"; exit 1; }
+[[ ! -s "$wgettmpd" ]] && { echo -e "ERROR: Data file corrupt or missing! Aborted.\n"; exit 1; }
 
 # Get cookie
  jsessionid=$(awk '/JSESSIONID/{print $7}' "$wgettmpc")
 
  # Get url formula; and as we're here, extract filename as well.
 
- dlbtnline=$(awk -F= '/'\''dlbutton'\''/{print $2}' "$wgettmpi" | sed 's/[";)(]*//g') 
+ dlbtnline=$(awk -F= '/'\''dlbutton'\''/{print $2}' "$wgettmpd" | sed 's/[";)(]*//g') 
  formula=$(cut -f2-4 -d+ <<<"$dlbtnline") 
  fname=$(cut -f5 -d/ <<<"$dlbtnline")
 
