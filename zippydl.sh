@@ -4,6 +4,12 @@
 #  Entirely REWRITTEN, fixed, simplified and shortened by andreas-e (now can do everything in less than
 #   85 L.o.C.; besides, original script did not work at all)
 # @Usage: zippydl.sh <URL to file>
+# Note: You may now append --debug option to the URL to check if the script still works correctly with the current
+# ZippyShare site version.
+
+ver_y="2015"
+ver_mon="06"
+ver_day="19"
 
 tmpdir="/tmp"
 #temp file #1: dumped cookie file (from wget's --save-cookies option)
@@ -12,7 +18,9 @@ wgettmpc="$tmpdir/.zippydlcookie0"
 wgettmpd="$tmpdir/.zippydldata0"
 
 [[ -f "$wgettmpc" || -f "$wgettmpd" ]] && rm -f "$wgettmpc" "$wgettmpd"
-[[ "$1" == "" ]] && { echo -e "\nUsage: $0 <URL to file>"; exit 0; }
+[[ "$1" == "" ]] && { echo -e "\nzippyDL version $ver_y-$ver_mon-$ver_day\n\n\
+Usage: $0 <URL to file>\n\n**Note**: Algorithms may change DAILY and can render the current version\n\
+of this script useless overnight. YOU'VE BEEN WARNED."; exit 0; }
 
 wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$wgettmpc"
 
@@ -28,6 +36,8 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  formula=$(cut -f2-4 -d+ <<<"$dlbtnline") 
  fname=$(cut -f5 -d/ <<<"$dlbtnline")
 
+ [[ "$2" == "--debug" ]] && echo "[DEBUG] formula = $formula"
+
  # Get variables string into array
  read -a arr <<<$formula
 
@@ -39,6 +49,7 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  for ((i=0;i<${#param[@]};i++)); do
     [[ ${param[i]} =~ [0-9]+ ]] && x=${param[i]} || \
     x=$(grep "var ${param[i]} =" "$wgettmpd" | sed 's/;$//' | cut -f2 -d=)
+    [[ "$2" == "--debug" ]] && echo "[DEBUG] x = $x"
     [[ $x =~ [0-9]+ ]] && v[i]=$x;
  done
 
@@ -47,7 +58,7 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
     ret="$ret${arr[2*i+1]}${v[i+1]}"
  done
 
- code=$((ret*10+3))
+ code=$((ret))
  referrer=$(awk -F\" '/og:url/{print $4}' "$wgettmpd")
  server=$(cut -f3 -d'/' <<<"$referrer")
  id=$(cut -f5 -d'/' <<<"$referrer")
