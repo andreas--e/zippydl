@@ -2,7 +2,7 @@
 # @Description: zippyshare.com file download script
 #  Very loosely based on tyoyo's script at https://github.com/tyoyo/zippyshare/blob/master/zippyshare.sh
 #  Entirely REWRITTEN, fixed, simplified and shortened by andreas-e (now can do everything in less than
-#   85 L.o.C.; besides, original script did not work at all)
+#   100 L.o.C.; besides, original script did not work at all)
 # @Usage: zippydl.sh <URL to file>
 # Note: You may now append --debug option to the URL to check if the script still works correctly with the current
 # ZippyShare site version.
