@@ -1,15 +1,15 @@
 #!/bin/bash
 # @Description: zippyshare.com file download script
 #  Very loosely based on tyoyo's script at https://github.com/tyoyo/zippyshare/blob/master/zippyshare.sh
-#  Entirely REWRITTEN, fixed, simplified and shortened by andreas-e (now can do everything in less than
-#   100 L.o.C.; besides, original script did not work at all)
+#  Entirely REWRITTEN, fixed, simplified and shortened by andreas-e (now can do everything in about 30 L.o.C.
+#  less than before; besides, couldn't get original script to work at all)
 # @Usage: zippydl.sh <URL to file>
 # Note: You may now append --debug option to the URL to check if the script still works correctly with the current
 # ZippyShare site version.
 
 ver_y="2015"
 ver_mon="06"
-ver_day="19"
+ver_day="24"
 
 tmpdir="/tmp"
 #temp file #1: dumped cookie file (from wget's --save-cookies option)
@@ -33,10 +33,33 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  # Get url formula; and as we're here, extract filename as well.
 
  dlbtnline=$(awk -F= '/'\''dlbutton'\''/{print $2}' "$wgettmpd" | sed 's/[";)(]*//g') 
- formula=$(cut -f2-4 -d+ <<<"$dlbtnline") 
+ formula=$(cut -f4 -d\/ <<<"$dlbtnline" | sed 's/\(^+\|+$\)//g')
  fname=$(cut -f5 -d/ <<<"$dlbtnline")
 
- [[ "$2" == "--debug" ]] && echo "[DEBUG] formula = $formula"
+ [[ "$2" == "--debug" ]] && 
+ echo -e "[DEBUG]dl_line(RAW)=$dlbtnline\n[DEBUG] formula = $formula\n[DEBUG]1st line = $(awk '/var n/' $wgettmpd)"
+ 
+ # FIXME: Match is totally hackish at present! But we must make sure that variable declarations of Google Analytics 
+ # et. al. are not matched as well.
+ read -a vars <<< $(awk '/var [^ast] =/{print $2}' "$wgettmpd")
+ IFS=";" read -a form_orig <<< $(awk '/var [^ast] = /{for (i=4;i<=NF;i++) printf $i;next}' "$wgettmpd")
+  
+ for ((i=0;i<${#vars[@]};i++)); do
+   tmpvar=${vars[i]}              # tmpvar = <varname> (dynamic)
+   declare $tmpvar=${form_orig[i]}
+   form[i]=${!tmpvar}
+ 
+   # check formulae for variable names (none allowed for calculations [but arithmetic operations are!])
+
+   [[ ${form[i]} =~ ^[0-9]+(\s*(\+|-|\*|/||%)\s*[0-9]+)*$ ]] &&
+     { form[i]=$(bc <<< ${form[i]}); } ||
+     { [[ "$2" == "--debug" ]] && echo "new form of ${vars[i]}= $((${form[i]}))"; }
+ 
+     # redeclare (assigning altered value of formula)
+     declare $tmpvar=${form[i]}
+ 
+     [[ "$2" == "--debug" ]] && echo "[DEBUG] ${vars[i]} has value of ${form[i]}"
+  done
 
  # Get variables string into array
  read -a arr <<<$formula
@@ -90,4 +113,4 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
 
   [[ -s "$fname" ]] && { echo -e "\e[032m Download success! \e[00m"; } || { echo -e "\e[031m Download error! \e[00m"; }
 
-  rm -f "$wgettmpc" "$wgettmpd"
+  # rm -f "$wgettmpc" "$wgettmpd"
