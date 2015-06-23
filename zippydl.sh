@@ -113,4 +113,4 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
 
   [[ -s "$fname" ]] && { echo -e "\e[032m Download success! \e[00m"; } || { echo -e "\e[031m Download error! \e[00m"; }
 
-  # rm -f "$wgettmpc" "$wgettmpd"
+  rm -f "$wgettmpc" "$wgettmpd"
