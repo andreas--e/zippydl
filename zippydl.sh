@@ -37,8 +37,10 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  # if dlbtnline is empty, it is highly probable that RE-CAPTCHA has been activated!! ("I am not a robot" stuff)
  # This is currently not supported (sorry)
  [[ "$dlbtnline" == "" ]] &&
- { echo -e "\e[0;31m\nWARNING: zippyDL detected that Re-Captcha has been activated for this file!\n\
- You must use your browser to download this one - sorry.\e[0;0m"; exit 0; }
+ { echo -e "\e[0;31m\n* WARNING: Could not download file from URL '$1'!\n\n\
+  zippyDL has detected that reCAPTCHA has been activated for this file!\n\
+  You must use your browser to download this one - sorry.\e[0;0m"; exit 0; }
+
  
  formula=$(cut -f4 -d\/ <<<"$dlbtnline" | sed 's/\(^+\|+$\)//g')
  fname=$(cut -f5 -d/ <<<"$dlbtnline")
