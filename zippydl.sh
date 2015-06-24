@@ -9,7 +9,10 @@
 
 ver_y="2015"
 ver_mon="06"
-ver_day="24"
+ver_day="25"
+
+dbg="[DEBUG]"
+[[ "$2" == "--debug" ]] && dbgmode=1 || dbgmode=0
 
 tmpdir="/tmp"
 #temp file #1: dumped cookie file (from wget's --save-cookies option)
@@ -36,17 +39,18 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  
  # if dlbtnline is empty, it is highly probable that RE-CAPTCHA has been activated!! ("I am not a robot" stuff)
  # This is currently not supported (sorry)
- [[ "$dlbtnline" == "" ]] &&
+ 
+ [[ "$dlbtnline" == "" ]] && 
  { echo -e "\e[0;31m\n* WARNING: Could not download file from URL '$1'!\n\n\
   zippyDL has detected that reCAPTCHA has been activated for this file!\n\
-  You must use your browser to download this one - sorry.\e[0;0m"; exit 0; }
+  You must use your browser to download this one - sorry.\e[0;0m"; exit 0; } 
 
- 
  formula=$(cut -f4 -d\/ <<<"$dlbtnline" | sed 's/\(^+\|+$\)//g')
- fname=$(cut -f5 -d/ <<<"$dlbtnline")
+ # Get file name, and also unescape it so that the target file doesn't%20look%20like%this
+ fname=$(cut -f5 -d/ <<<"$dlbtnline" | awk -niord '{printf RT?$0chr("0x"substr(RT,2)):$0}' RS=%..)
 
- [[ "$2" == "--debug" ]] && 
- echo -e "[DEBUG]dl_line(RAW)=$dlbtnline\n[DEBUG] formula = $formula\n[DEBUG]1st line = $(awk '/var n/' $wgettmpd)"
+ [[ $dbgmode -eq 1 ]] && 
+ echo -e "$dbg dl_line(RAW)=$dlbtnline\n$dbg formula = $formula\nfilename=$fname\n"
  
  # FIXME: Match is totally hackish at present! But we must make sure that variable declarations of Google Analytics 
  # et. al. are not matched as well.
@@ -62,12 +66,12 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
 
    [[ ${form[i]} =~ ^[0-9]+(\s*(\+|-|\*|/||%)\s*[0-9]+)*$ ]] &&
      { form[i]=$(bc <<< ${form[i]}); } ||
-     { [[ "$2" == "--debug" ]] && echo "new form of ${vars[i]}= $((${form[i]}))"; }
+     { [[ $dbgmode -eq 1 ]] && echo "new form of ${vars[i]}= $((${form[i]}))"; }
  
      # redeclare (assigning altered value of formula)
      declare $tmpvar=${form[i]}
  
-     [[ "$2" == "--debug" ]] && echo "[DEBUG] ${vars[i]} has value of ${form[i]}"
+     [[ $dbgmode -eq 1 ]] && echo "$dbg ${vars[i]} has value of ${form[i]}"
   done
 
  # Get variables string into array
@@ -81,7 +85,7 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  for ((i=0;i<${#param[@]};i++)); do
     [[ ${param[i]} =~ [0-9]+ ]] && x=${param[i]} || \
     x=$(grep "var ${param[i]} =" "$wgettmpd" | sed 's/;$//' | cut -f2 -d=)
-    [[ "$2" == "--debug" ]] && echo "[DEBUG] x = $x"
+    [[ "$2" == "--debug" ]] && echo "$dbg x = $x"
     [[ $x =~ [0-9]+ ]] && v[i]=$x;
  done
 
@@ -113,6 +117,7 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
   --referer='$referrer' \
   --cookies=off --header "Cookie: JSESSIONID=$jsessionid" \
   --progress=dot \
+  --restrict-file-names=unix,nocontrol \
   2>&1 | \
   grep --line-buffered "%" |
   sed -ue "s/\.//g" | 
