@@ -9,7 +9,7 @@
 
 ver_y="2015"
 ver_mon="06"
-ver_day="25"
+ver_day="27"
 
 dbg="[DEBUG]"
 [[ "$2" == "--debug" ]] && dbgmode=1 || dbgmode=0
@@ -35,7 +35,7 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
 
  # Get url formula; and as we're here, extract filename as well.
 
- dlbtnline=$(awk -F= '/'\''dlbutton'\''/{print $2}' "$wgettmpd" | sed 's/[";)(]*//g') 
+ dlbtnline=$(awk -F, '/'\''dlbutton'\''/{print $2}' "$wgettmpd" | sed 's/^\s*[";)(]*//g') 
  
  # if dlbtnline is empty, it is highly probable that RE-CAPTCHA has been activated!! ("I am not a robot" stuff)
  # This is currently not supported (sorry)
@@ -45,9 +45,9 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
   zippyDL has detected that reCAPTCHA has been activated for this file!\n\
   You must use your browser to download this one - sorry.\e[0;0m"; exit 0; } 
 
- formula=$(cut -f4 -d\/ <<<"$dlbtnline" | sed 's/\(^+\|+$\)//g')
+ formula=$(cut -f4 -d\/ <<<"$dlbtnline" | sed 's/\(^"+\|+"$\)//g')
  # Get file name, and also unescape it so that the target file doesn't%20look%20like%this
- fname=$(cut -f5 -d/ <<<"$dlbtnline" | awk -niord '{printf RT?$0chr("0x"substr(RT,2)):$0}' RS=%..)
+ fname=$(cut -f5 -d/ <<<"$dlbtnline" | sed 's/");$//' | awk -niord '{printf RT?$0chr("0x"substr(RT,2)):$0}' RS=%..)
 
  [[ $dbgmode -eq 1 ]] && 
  echo -e "$dbg dl_line(RAW)=$dlbtnline\n$dbg formula = $formula\nfilename=$fname\n"
