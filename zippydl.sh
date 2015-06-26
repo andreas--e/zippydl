@@ -47,18 +47,20 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
 
  formula=$(cut -f4 -d\/ <<<"$dlbtnline" | sed 's/\(^"+\|+"$\)//g')
  # Get file name, and also unescape it so that the target file doesn't%20look%20like%this
- fname=$(cut -f5 -d/ <<<"$dlbtnline" | sed 's/");$//' | awk -niord '{printf RT?$0chr("0x"substr(RT,2)):$0}' RS=%..)
+ fname=$(cut -f5 -d/ <<<"$dlbtnline" | sed 's/");$//' | awk -n '@load"ordchr";{printf RT?$0chr("0x"substr(RT,2)):$0}' RS=%..)
 
  [[ $dbgmode -eq 1 ]] && 
  echo -e "$dbg dl_line(RAW)=$dlbtnline\n$dbg formula = $formula\nfilename=$fname\n"
  
  # FIXME: Match is totally hackish at present! But we must make sure that variable declarations of Google Analytics 
  # et. al. are not matched as well.
- read -a vars <<< $(awk '/var [^ast] =/{print $2}' "$wgettmpd")
- IFS=";" read -a form_orig <<< $(awk '/var [^ast] = /{for (i=4;i<=NF;i++) printf $i;next}' "$wgettmpd")
+
+ read -a vars <<< $(awk '/var [^gst] = [^n][^a][^v]/{print $2}' "$wgettmpd")
+ IFS=";" read -a form_orig <<< $(awk '/var [^gst] = [^n][^a][^v]/{for (i=4;i<=NF;i++) printf $i}' "$wgettmpd")
   
  for ((i=0;i<${#vars[@]};i++)); do
    tmpvar=${vars[i]}              # tmpvar = <varname> (dynamic)
+   [[ $dbgmode -eq 1 ]] && echo "$dbg Processing variable ${vars[i]}..."
    declare $tmpvar=${form_orig[i]}
    form[i]=${!tmpvar}
  
@@ -95,6 +97,7 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  done
 
  code=$((ret))
+ [[ $dbgmode -eq 1 ]] && echo "$dbg Final code: $code"
  referrer=$(awk -F\" '/og:url/{print $4}' "$wgettmpd")
  server=$(cut -f3 -d'/' <<<"$referrer")
  id=$(cut -f5 -d'/' <<<"$referrer")
