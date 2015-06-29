@@ -9,7 +9,7 @@
 
 ver_y="2015"
 ver_mon="06"
-ver_day="27"
+ver_day="30"
 
 dbg="[DEBUG]"
 [[ "$2" == "--debug" ]] && dbgmode=1 || dbgmode=0
@@ -23,7 +23,7 @@ wgettmpd="$tmpdir/.zippydldata0"
 [[ -f "$wgettmpc" || -f "$wgettmpd" ]] && rm -f "$wgettmpc" "$wgettmpd"
 [[ "$1" == "" ]] && { echo -e "\nzippyDL version $ver_y-$ver_mon-$ver_day\n\n\
 Usage: $0 <URL to file>\n\n**Note**: Algorithms may change DAILY and can render the current version\n\
-of this script useless overnight. YOU'VE BEEN WARNED."; exit 0; }
+of this script useless  o v e r n i g h t. YOU'VE BEEN WARNED."; exit 0; }
 
 wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$wgettmpc"
 
@@ -34,37 +34,37 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  jsessionid=$(awk '/JSESSIONID/{print $7}' "$wgettmpc")
 
  # Get url formula; and as we're here, extract filename as well.
-
- dlbtnline=$(awk -F, '/'\''dlbutton'\''/{print $2}' "$wgettmpd" | sed 's/^\s*[";)(]*//g') 
+ 
+ formula=$(awk -F\" '/'\''dlbutton'\''\)\.href/{print $3}' /tmp/.zippydldata0 | sed 's/\(^+(\|)+$\)//g')
+ dlbtnline=$(awk -F= '/'\''dlbutton'\''\).href/{print $2}' "$wgettmpd" | sed 's/^\s*"//;s/")\?;$//') 
  
  # if dlbtnline is empty, it is highly probable that RE-CAPTCHA has been activated!! ("I am not a robot" stuff)
  # This is currently not supported (sorry)
  
  [[ "$dlbtnline" == "" ]] && 
  { echo -e "\e[0;31m\n* WARNING: Could not download file from URL '$1'!\n\n\
-  zippyDL has detected that reCAPTCHA has been activated for this file!\n\
-  You must use your browser to download this one - sorry.\e[0;0m"; exit 0; } 
+  It is possible that reCAPTCHA might have been activated for this file!\n\
+  In this case, you will have to use your browser to download this one - sorry.\e[0;0m"; exit 0; } 
 
- formula=$(cut -f4 -d\/ <<<"$dlbtnline" | sed 's/\(^"+\|+"$\)//g')
  # Get file name, and also unescape it so that the target file doesn't%20look%20like%this
- fname=$(cut -f5 -d/ <<<"$dlbtnline" | sed 's/");$//' | awk -n '@load"ordchr";{printf RT?$0chr("0x"substr(RT,2)):$0}' RS=%..)
+ fname=$(printf `sed 's/%\(..\)/\\\\x\1/g' <<< $(cut -f5 -d/ <<< "$dlbtnline")`)
 
  [[ $dbgmode -eq 1 ]] && 
- echo -e "$dbg dl_line(RAW)=$dlbtnline\n$dbg formula = $formula\nfilename=$fname\n"
+ echo -e "$dbg dl_line(RAW)=$dlbtnline\n$dbg formula = $formula\n$dbg filename='$fname'\n"
  
- # FIXME: Match is totally hackish at present! But we must make sure that variable declarations of Google Analytics 
+ # FIXME: Match is somewhat hackish at present! But we must make sure that variable declarations of Google Analytics 
  # et. al. are not matched as well.
-
  read -a vars <<< $(awk '/var [^gst] = [^n][^a][^v]/{print $2}' "$wgettmpd")
  IFS=";" read -a form_orig <<< $(awk '/var [^gst] = [^n][^a][^v]/{for (i=4;i<=NF;i++) printf $i}' "$wgettmpd")
   
  for ((i=0;i<${#vars[@]};i++)); do
    tmpvar=${vars[i]}              # tmpvar = <varname> (dynamic)
-   [[ $dbgmode -eq 1 ]] && echo "$dbg Processing variable ${vars[i]}..."
+   [[ $dbgmode -eq 1 ]] && echo -n "$dbg Processing variable ${vars[i]}... "
    declare $tmpvar=${form_orig[i]}
    form[i]=${!tmpvar}
  
-   # check formulae for variable names (none allowed for calculations [but arithmetic operations are!])
+   # check if formulae contain variables on their part
+   # (none allowed for calculations [however arithmetic operations are!])
 
    [[ ${form[i]} =~ ^[0-9]+(\s*(\+|-|\*|/||%)\s*[0-9]+)*$ ]] &&
      { form[i]=$(bc <<< ${form[i]}); } ||
@@ -73,7 +73,7 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
      # redeclare (assigning altered value of formula)
      declare $tmpvar=${form[i]}
  
-     [[ $dbgmode -eq 1 ]] && echo "$dbg ${vars[i]} has value of ${form[i]}"
+     [[ $dbgmode -eq 1 ]] && echo "${vars[i]} set to ${form[i]}"
   done
 
  # Get variables string into array
@@ -81,23 +81,27 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
 
  # Get variable array
  for ((i=0;i<${#arr[@]};i+=2)); do
+    [[ $dbgmode -eq 1 ]] && echo "$dbg Assigning arr #$i w/value '${arr[i]}' to parameter"
     param[(i/2)]=${arr[i]}
  done
 
  for ((i=0;i<${#param[@]};i++)); do
     [[ ${param[i]} =~ [0-9]+ ]] && x=${param[i]} || \
-    x=$(grep "var ${param[i]} =" "$wgettmpd" | sed 's/;$//' | cut -f2 -d=)
-    [[ "$2" == "--debug" ]] && echo "$dbg x = $x"
+    x=$(grep "var ${param[i]} = [^n][^a][^v]" "$wgettmpd" | sed 's/;$//' | cut -f2 -d=)
+    [[ $dbgmode -eq 1 ]] && echo "$dbg Calculating result of: 'F=$x'"
     [[ $x =~ [0-9]+ ]] && v[i]=$x;
  done
 
- ret=${v[0]}
+ # === DIRTY HACK (TEMP) ====
+ ret=$((${v[0]}/3))
+ # ==========================
+
  for ((i=0;i<${#param[@]};i+=1)); do
     ret="$ret${arr[2*i+1]}${v[i+1]}"
  done
 
  code=$((ret))
- [[ $dbgmode -eq 1 ]] && echo "$dbg Final code: $code"
+ [[ $dbgmode -eq 1 ]] && echo "$dbg Final code (F): $code"
  referrer=$(awk -F\" '/og:url/{print $4}' "$wgettmpd")
  server=$(cut -f3 -d'/' <<<"$referrer")
  id=$(cut -f5 -d'/' <<<"$referrer")
