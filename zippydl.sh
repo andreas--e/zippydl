@@ -94,9 +94,6 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  # Get variable array
  for ((i=0;i<${#arr[@]};i+=2)); do
     [[ $dbgmode -eq 1 ]] && echo "$dbg Assigning arr #$i w/value '${arr[i]}' to parameter"
-  
-   [[ ${arr[i]} =~ .*Math.pow.* ]] && echo "mathpow found" 
-
    param[(i/2)]=${arr[i]}
  done
 
