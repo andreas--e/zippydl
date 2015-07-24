@@ -8,8 +8,8 @@
 # ZippyShare site version.
 
 ver_y="2015"
-ver_mon="06"
-ver_day="30"
+ver_mon="07"
+ver_day="24"
 
 dbg="[DEBUG]"
 [[ "$2" == "--debug" ]] && dbgmode=1 || dbgmode=0
@@ -34,8 +34,10 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  jsessionid=$(awk '/JSESSIONID/{print $7}' "$wgettmpc")
 
  # Get url formula; and as we're here, extract filename as well.
+
+ formula=$(awk -F\" '/'\''dlbutton'\''\)\.href/{print $3}' /tmp/.zippydldata0 | 
+           sed -e 's/\(^+(\|)+$\)//g' -e "s/document[a-zA-Z'()\.]\+\.omg\.length/omg/")
  
- formula=$(awk -F\" '/'\''dlbutton'\''\)\.href/{print $3}' /tmp/.zippydldata0 | sed 's/\(^+(\|)+$\)//g')
  dlbtnline=$(awk -F= '/'\''dlbutton'\''\).href/{print $2}' "$wgettmpd" | sed 's/^\s*"//;s/")\?;$//') 
  
  # if dlbtnline is empty, it is highly probable that RE-CAPTCHA has been activated!! ("I am not a robot" stuff)
@@ -54,21 +56,31 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  
  # FIXME: Match is somewhat hackish at present! But we must make sure that variable declarations of Google Analytics 
  # et. al. are not matched as well.
- read -a vars <<< $(awk '/var [^gst] = [^n][^a][^v]/{print $2}' "$wgettmpd")
- IFS=";" read -a form_orig <<< $(awk '/var [^gst] = [^n][^a][^v]/{for (i=4;i<=NF;i++) printf $i}' "$wgettmpd")
-  
+ read -a vars <<< $(awk -F= '/(var [^gst]|document\.getEl.*\.omg) = "?([^n][^a][^v]|Math)/{gsub(/^[ ]+(var )?/,"",$1);print $1}' "$wgettmpd")
+ IFS=";" read -a form_orig <<< $(awk '/(var [^gst]|document\.getEl.*\.omg) = "?([^n][^a][^v]|Math)/{for (i=3;i<=NF;i++) {gsub (/^=/,"",$i);printf $i}}' "$wgettmpd")
+
  for ((i=0;i<${#vars[@]};i++)); do
+  [[ ${vars[i]} =~ \.omg$ ]] && { vars[i]="omg"; }
+
    tmpvar=${vars[i]}              # tmpvar = <varname> (dynamic)
    [[ $dbgmode -eq 1 ]] && echo -n "$dbg Processing variable ${vars[i]}... "
+
+   form_orig[i]=$(sed 's/Math.pow//;s/(\([a-z]\)\s*,\s(\([a-z]\)/\1\2/;s/,/**/' <<< ${form_orig[i]})
+
    declare $tmpvar=${form_orig[i]}
    form[i]=${!tmpvar}
  
    # check if formulae contain variables on their part
    # (none allowed for calculations [however arithmetic operations are!])
 
-   [[ ${form[i]} =~ ^[0-9]+(\s*(\+|-|\*|/||%)\s*[0-9]+)*$ ]] &&
-     { form[i]=$(bc <<< ${form[i]}); } ||
-     { [[ $dbgmode -eq 1 ]] && echo "new form of ${vars[i]}= $((${form[i]}))"; }
+   [[ ${form[i]} =~ (?^[0-9]+(\s*(\+|-|\*\*?|/|%)\s*[0-9]+)*)?$ ]] &&
+     { echo "bc mode"; form[i]=$(bc <<< ${form[i]}); } ||
+     { [[ ${form_orig[i]} =~ \"[a-zA-Z0-9]+\" ]] && { form[i]=$((${#form_orig[i]}-2)); }\
+       || { 
+            form[i]=$((${form_orig[i]})); 
+            [[ $dbgmode -eq 1 ]] && { echo "new form of ${vars[i]}= $((${form[i]}))";};
+          }
+     }
  
      # redeclare (assigning altered value of formula)
      declare $tmpvar=${form[i]}
@@ -82,18 +94,30 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  # Get variable array
  for ((i=0;i<${#arr[@]};i+=2)); do
     [[ $dbgmode -eq 1 ]] && echo "$dbg Assigning arr #$i w/value '${arr[i]}' to parameter"
-    param[(i/2)]=${arr[i]}
+  
+   [[ ${arr[i]} =~ .*Math.pow.* ]] && echo "mathpow found" 
+
+   param[(i/2)]=${arr[i]}
  done
 
- for ((i=0;i<${#param[@]};i++)); do
-    [[ ${param[i]} =~ [0-9]+ ]] && x=${param[i]} || \
-    x=$(grep "var ${param[i]} = [^n][^a][^v]" "$wgettmpd" | sed 's/;$//' | cut -f2 -d=)
-    [[ $dbgmode -eq 1 ]] && echo "$dbg Calculating result of: 'F=$x'"
+for ((i=0;i<${#param[@]};i++)); do
+    [[ $dbgmode -eq 1 ]] && echo "[DEBUG] Processing param[$i] = ${param[i]}"  
+
+    [[ ${param[i]} == "omg" ]] && { x=${form[i/2]}; } ||
+       { [[ ${param[i]} =~ [0-9]+ ]] && x=${param[i]} || \
+         { x=$(grep "var ${param[i]} = \([^n][^a][^v]\|Math\)" "$wgettmpd" | sed 's/;$//' | cut -f2 -d=); 
+         [[ $x =~ Math\. ]] && x=$(($(sed 's/Math.pow//;s/(\([a-z]\)\s*,\s(\([a-z]\)/\1\2/;s/,/**/' <<< "$x"))); 
+         }
+    }
+
+    [[ $dbgmode -eq 1 ]] && echo "$dbg Calculating result of F : '$x'"
     [[ $x =~ [0-9]+ ]] && v[i]=$x;
  done
 
  # === DIRTY HACK (TEMP) ====
- ret=$((${v[0]}/3))
+ [[ ${v[0]} =~ [0-9]+ ]] && 
+  { ret=$((${v[0]})); 
+  } || { echo -e "\n** INTERNAL ERROR! (v is not a number - calculation not possible)\n"; exit 1; }
  # ==========================
 
  for ((i=0;i<${#param[@]};i+=1)); do
