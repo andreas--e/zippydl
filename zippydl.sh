@@ -8,8 +8,8 @@
 # ZippyShare site version.
 
 ver_y="2015"
-ver_mon="07"
-ver_day="29"
+ver_mon="08"
+ver_day="04"
 
 dbg="[DEBUG]"
 [[ "$2" == "--debug" ]] && dbgmode=1 || dbgmode=0
@@ -65,7 +65,12 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
    tmpvar=${vars[i]}              # tmpvar = <varname> (dynamic)
    [[ $dbgmode -eq 1 ]] && echo -n "$dbg Processing variable ${vars[i]}... "
 
-   form_orig[i]=$(sed 's/\(Math\.pow\|function(){return\)//;s/\(}\|()\)//g;s/(\([a-z]\)\s*,\s(\([a-z]\)/\1\2/;s/,/**/' <<< ${form_orig[i]})
+   form_orig[i]=$(sed 's/\(Math\.pow\|function(){return\)//
+                       s/\(}\|()\)//g
+                       s/(\([a-z]\)\s*,\s(\([a-z]\)/\1\2/
+                       s/,/**/'\
+                       <<< ${form_orig[i]})
+   [[ ${form_orig[i]} =~ getAttribute ]] && { form_orig[i]=$(($(grep -o 'span id=\"omg\" class=\"[0-9]\"' "$wgettmpd" | cut -f4 '-d"'))); }
    declare $tmpvar=${form_orig[i]}
    form[i]=${!tmpvar}
  
@@ -76,9 +81,8 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
      { echo "bc mode"; form[i]=$(bc <<< ${form[i]}); } ||
      { [[ ${form_orig[i]} =~ \"[a-zA-Z0-9]+\" ]] && { form[i]=$((${#form_orig[i]}-2)); }\
        || { [[ ! ${form_orig[i]} =~ getAttribute ]] &&
-            { 
-               form[i]=$((${form_orig[i]})); 
-               [[ $dbgmode -eq 1 ]] && { echo "new form of ${vars[i]}= $((${form[i]}))";};
+            { form[i]=$((${form_orig[i]})); 
+              [[ $dbgmode -eq 1 ]] && { echo "new form of ${vars[i]}= $((${form[i]}))";};
             }
           }
      } 
@@ -106,18 +110,23 @@ for ((i=0;i<${#param[@]};i++)); do
        { [[ ${param[i]} =~ [0-9]+ ]] && x=${param[i]} ||
          { x=$(grep "var ${param[i]} = \([^n][^a][^v]\|Math\)" "$wgettmpd" | sed 's/;$//' | cut -f2 -d=); 
            [[ $x =~ Math\. || $x =~ func ]] && 
-            {  x=$(($(sed 's/\(Math\.pow\|function() {return\)//;s/\(}\|()\)//g;s/(\([a-z]\)\s*,\s(\([a-z]\)/\1\2/;s/,/**/'\
+            {  x=$(($(sed 's/\(Math\.pow\|function() {return\)//
+                           s/\(}\|()\)//g
+                           s/(\([a-z]\)\s*,\s(\([a-z]\)/\1\2/
+                           s/,/**/'\
                <<< "$x"))); }
-           [[ $x =~ getAttribute ]] && { v[i]=$((2*$(grep -o 'span id=\"omg\" class=\"[0-9]\"' "$wgettmpd" | cut -f4 '-d"'))); }
+           [[ $x =~ getAttribute ]] && { v[i]=$(($(grep -o 'span id=\"omg\" class=\"[0-9]\"' "$wgettmpd" | cut -f4 '-d"'))); }
          }
        }
     [[ $dbgmode -eq 1 ]] && echo "$dbg Calculating result of F : '$x'"
     [[ $x =~ [0-9]+ ]] && v[i]=$x;
  done
 
+ # === DIRTY HACK (TEMP) ====
  [[ ${v[0]} =~ [0-9]+ ]] && 
   { ret=$((${v[0]})); 
   } || { echo -e "\n** INTERNAL ERROR! (v is not a number - calculation not possible)\n"; exit 1; }
+ # ==========================
 
  for ((i=0;i<${#param[@]};i+=1)); do
     ret="$ret${arr[2*i+1]}${v[i+1]}"
