@@ -9,7 +9,7 @@
 
 ver_y="2015"
 ver_mon="08"
-ver_day="04"
+ver_day="13"
 
 dbg="[DEBUG]"
 [[ "$2" == "--debug" ]] && dbgmode=1 || dbgmode=0
@@ -33,12 +33,12 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
 # Get cookie
  jsessionid=$(awk '/JSESSIONID/{print $7}' "$wgettmpc")
 
- # Get url formula; and as we're here, extract filename as well.
+ # Get url formula
 
- formula=$(awk -F\" '/'\''dlbutton'\''\)\.href/{print $3}' /tmp/.zippydldata0 | 
+ formula=$(awk -F\" '/'\''dlbutton'\''\)\.href\s*= "\/d\/[[:digit:]]{5,}/{print $3}' /tmp/.zippydldata0 | 
            sed -e 's/\(^+(\|)+$\)//g' -e "s/document[a-zA-Z'()\.]\+\.omg\.length/omg/")
  
- dlbtnline=$(awk -F= '/'\''dlbutton'\''\).href/{print $2}' "$wgettmpd" | sed 's/^\s*"//;s/")\?;$//') 
+ dlbtnline=$(awk -F= '/'\''dlbutton'\''\).href\s*=\s*"\/d\/[0-9]{6,9}\//{print $2}' "$wgettmpd" | sed 's/^\s*"//;s/")\?;$//') 
  
  # if dlbtnline is empty, it is highly probable that RE-CAPTCHA has been activated!! ("I am not a robot" stuff)
  # This is currently not supported (sorry)
@@ -48,7 +48,7 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
   It is possible that reCAPTCHA might have been activated for this file!\n\
   In this case, you will have to use your browser to download this one - sorry.\e[0;0m"; exit 0; } 
 
- # Get file name, and also unescape it so that the target file doesn't%20look%20like%this
+ # Get file name, and also unescape it so that the target file doesn't%20look%20like%20this
  fname=$(printf `sed 's/%\(..\)/\\\\x\1/g' <<< $(echo ${dlbtnline##*/})`)
 
  [[ $dbgmode -eq 1 ]] && 
@@ -56,8 +56,8 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
  
  # FIXME: Match is somewhat hackish at present! But we must make sure that variable declarations of Google Analytics 
  # et. al. are not matched as well.
- read -a vars <<< $(awk -F= '/(var [^gst]|document\.getEl.*\.omg) = "?([^n][^a][^v]|Math)/{gsub(/^[ ]+(var )?/,"",$1);print $1}' "$wgettmpd")
- IFS=";" read -a form_orig <<< $(awk '/(var [^gst]|document\.getEl.*\.omg) = "?([^n][^a][^v]|Math)/{for (i=3;i<=NF;i++) {gsub (/^=/,"",$i);printf $i}}' "$wgettmpd")
+ read -a vars <<< $(awk -F= '/(var [^egst]|document\.getEl.*\.omg) = "?([^n][^a][^v]|parseInt||Math)/{gsub(/^[ ]+(var )?/,"",$1);print $1}' "$wgettmpd")
+ IFS=";" read -a form_orig <<< $(awk '/(var [^egst]|document\.getEl.*\.omg) = "?([^n][^a][^v]|parseInt|Math)/{for (i=3;i<=NF;i++) {gsub (/^=/,"",$i);printf $i}}' "$wgettmpd")
 
  for ((i=0;i<${#vars[@]};i++)); do
   [[ ${vars[i]} =~ \.omg$ ]] && { vars[i]="omg"; }
@@ -65,11 +65,13 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
    tmpvar=${vars[i]}              # tmpvar = <varname> (dynamic)
    [[ $dbgmode -eq 1 ]] && echo -n "$dbg Processing variable ${vars[i]}... "
 
-   form_orig[i]=$(sed 's/\(Math\.pow\|function(){return\)//
+   form_orig[i]=$(sed 's/\(Math\.pow\|function(){return\|parseInt(document[[:alpha:][:punct:]]\+.omg)\)/omg/
                        s/\(}\|()\)//g
                        s/(\([a-z]\)\s*,\s(\([a-z]\)/\1\2/
                        s/,/**/'\
                        <<< ${form_orig[i]})
+
+   echo "FORM_ORIG=${form_orig[i]}"
    [[ ${form_orig[i]} =~ getAttribute ]] && { form_orig[i]=$(($(grep -o 'span id=\"omg\" class=\"[0-9]\"' "$wgettmpd" | cut -f4 '-d"'))); }
    declare $tmpvar=${form_orig[i]}
    form[i]=${!tmpvar}
@@ -78,7 +80,7 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
    # (none allowed for calculations [however arithmetic operations are!])
 
    [[ ${form[i]} =~ (?^[0-9]+(\s*(\+|-|\*\*?|/|%)\s*[0-9]+)*)?$ ]] &&
-     { echo "bc mode"; form[i]=$(bc <<< ${form[i]}); } ||
+     { echo "[DEBUG] bc mode"; form[i]=$(bc <<< ${form[i]}); } ||
      { [[ ${form_orig[i]} =~ \"[a-zA-Z0-9]+\" ]] && { form[i]=$((${#form_orig[i]}-2)); }\
        || { [[ ! ${form_orig[i]} =~ getAttribute ]] &&
             { form[i]=$((${form_orig[i]})); 
@@ -93,7 +95,10 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
   done
 
  # Get variables string into array
- read -a arr <<<$formula
+ 
+echo "FORMULA = $formula"
+
+read -a arr <<<$formula
 
  # Get variable array
  for ((i=0;i<${#arr[@]};i+=2)); do
