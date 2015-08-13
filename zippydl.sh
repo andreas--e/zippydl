@@ -71,7 +71,6 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
                        s/,/**/'\
                        <<< ${form_orig[i]})
 
-   echo "FORM_ORIG=${form_orig[i]}"
    [[ ${form_orig[i]} =~ getAttribute ]] && { form_orig[i]=$(($(grep -o 'span id=\"omg\" class=\"[0-9]\"' "$wgettmpd" | cut -f4 '-d"'))); }
    declare $tmpvar=${form_orig[i]}
    form[i]=${!tmpvar}
@@ -96,9 +95,7 @@ wget -qO "$wgettmpd" "$1" --cookies=on --keep-session-cookies --save-cookies="$w
 
  # Get variables string into array
  
-echo "FORMULA = $formula"
-
-read -a arr <<<$formula
+ read -a arr <<<$formula
 
  # Get variable array
  for ((i=0;i<${#arr[@]};i+=2)); do
